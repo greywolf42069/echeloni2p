@@ -33,11 +33,11 @@ describe.skipIf(!hasDist)('production build is CDN-free', () => {
     });
 
     it('references a local hashed JS bundle', () => {
-        expect(html).toMatch(/src="\/assets\/index-[\w-]+\.js"/);
+        expect(html).toMatch(/src="\.?\/assets\/index-[\w-]+\.js"/);
     });
 
     it('references a local hashed CSS bundle (Tailwind built, not CDN)', () => {
-        expect(html).toMatch(/href="\/assets\/index-[\w-]+\.css"/);
+        expect(html).toMatch(/href="\.?\/assets\/index-[\w-]+\.css"/);
     });
 
     it('references the manifest at a stable (unhashed) path', () => {
