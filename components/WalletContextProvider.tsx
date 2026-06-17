@@ -4,13 +4,23 @@ import { WalletAdapterNetwork } from '@solana/wallet-adapter-base';
 import { PhantomWalletAdapter, SolflareWalletAdapter } from '@solana/wallet-adapter-wallets';
 import { WalletModalProvider } from '@solana/wallet-adapter-react-ui';
 import { Connection, clusterApiUrl } from '@solana/web3.js';
-import { isAndroid } from '../utils/platform.ts';
+
+// ── Platform Detection (safe, no require()) ─────────────────
+function isAndroid(): boolean {
+    try {
+        // Check for Capacitor native platform via the global it sets
+        return !!(window as any).Capacitor?.isNativePlatform?.() &&
+               (window as any).Capacitor?.getPlatform?.() === 'android';
+    } catch {
+        return false;
+    }
+}
 
 // ── Mobile Wallet Adapter (MWA) ──────────────────────────────
-let MwaAdapter: typeof import('@solana-mobile/wallet-adapter-mobile').SolanaMobileWalletAdapter | null = null;
-let createDefaultAddressSelector: typeof import('@solana-mobile/wallet-adapter-mobile').createDefaultAddressSelector | null = null;
-let createDefaultAuthorizationResultCache: typeof import('@solana-mobile/wallet-adapter-mobile').createDefaultAuthorizationResultCache | null = null;
-let createDefaultWalletNotFoundHandler: typeof import('@solana-mobile/wallet-adapter-mobile').createDefaultWalletNotFoundHandler | null = null;
+let MwaAdapter: any = null;
+let createDefaultAddressSelector: any = null;
+let createDefaultAuthorizationResultCache: any = null;
+let createDefaultWalletNotFoundHandler: any = null;
 
 try {
     const mwa = require('@solana-mobile/wallet-adapter-mobile');
@@ -23,15 +33,8 @@ try {
 }
 
 // ── RPC Endpoint Resilience ──────────────────────────────────
-// Multiple endpoints for automatic fallback on failure.
-// Public Solana RPC is rate-limited and often degraded.
-
 const RPC_ENDPOINTS: string[] = [
-    // Primary: configurable via env
-    (globalThis as any).__EchelonEnv?.VITE_SOLANA_RPC_URL || '',
-    // Fallback 1: Solana public
     clusterApiUrl(WalletAdapterNetwork.Mainnet),
-    // Fallback 2: Alternative public endpoints
     'https://solana-mainnet.g.alchemy.com/v2/demo',
     'https://rpc.ankr.com/solana',
 ].filter(Boolean);
@@ -42,20 +45,16 @@ export type ConnectionStatus = 'connected' | 'degraded' | 'disconnected';
 
 interface ConnectionHealth {
     status: ConnectionStatus;
-    latency: number;         // ms
-    endpoint: string;        // current endpoint name
-    lastCheck: number;       // timestamp
+    latency: number;
+    endpoint: string;
+    lastCheck: number;
     consecutiveFailures: number;
 }
 
-const HEALTH_CHECK_INTERVAL = 30_000; // 30 seconds
-const LATENCY_THRESHOLD = 5000;       // 5s = degraded
-const MAX_FAILURES = 3;               // after 3 failures = disconnected
+const HEALTH_CHECK_INTERVAL = 30_000;
+const LATENCY_THRESHOLD = 5000;
+const MAX_FAILURES = 3;
 
-/**
- * Hook to monitor RPC connection health.
- * Polls getVersion() periodically to detect dead connections.
- */
 export function useConnectionHealth(): ConnectionHealth {
     const { connection } = useConnection();
     const [health, setHealth] = useState<ConnectionHealth>({
@@ -103,10 +102,6 @@ export function useConnectionHealth(): ConnectionHealth {
 
 // ── Retry Wrapper ─────────────────────────────────────────────
 
-/**
- * Retry a Solana RPC call with exponential backoff.
- * Handles 429 rate limits and transient 503s.
- */
 export async function withRetry<T>(
     fn: () => Promise<T>,
     options: { maxAttempts?: number; baseDelay?: number; label?: string } = {}
@@ -120,14 +115,12 @@ export async function withRetry<T>(
             const isLastAttempt = attempt === maxAttempts - 1;
             if (isLastAttempt) throw err;
 
-            // Check for rate limit (429 or JSON-RPC -32005)
             const isRateLimit =
                 err?.message?.includes('429') ||
                 err?.message?.includes('rate limit') ||
                 err?.message?.includes('-32005') ||
                 err?.statusCode === 429;
 
-            // Check for transient errors (503, timeout, ECONNRESET)
             const isTransient =
                 err?.message?.includes('503') ||
                 err?.message?.includes('timeout') ||
@@ -137,7 +130,6 @@ export async function withRetry<T>(
 
             if (!isRateLimit && !isTransient) throw err;
 
-            // Exponential backoff with jitter
             const delay = baseDelay * Math.pow(2, attempt) + Math.random() * 500;
             console.warn(
                 `[${label}] Attempt ${attempt + 1}/${maxAttempts} failed (${isRateLimit ? 'rate-limit' : 'transient'}). ` +
@@ -155,32 +147,36 @@ export async function withRetry<T>(
 const WalletContextProvider: FC<{ children: ReactNode }> = ({ children }) => {
     const network = WalletAdapterNetwork.Mainnet;
 
-    // Use primary endpoint, fallback list is for withRetry at call sites
     const endpoint = useMemo(() => {
         return RPC_ENDPOINTS[0] || clusterApiUrl(network);
     }, [network]);
 
     const wallets = useMemo(() => {
-        if (isAndroid() && MwaAdapter && createDefaultAddressSelector && createDefaultAuthorizationResultCache && createDefaultWalletNotFoundHandler) {
-            return [
-                new MwaAdapter({
-                    addressSelector: createDefaultAddressSelector(),
-                    appIdentity: {
-                        name: 'Echelon',
-                        uri: 'https://echelon.app',
-                        icon: 'icons/icon-192.png',
-                    },
-                    authorizationResultCache: createDefaultAuthorizationResultCache(),
-                    cluster: network === WalletAdapterNetwork.Mainnet ? 'mainnet-beta' : network,
-                    onWalletNotFound: createDefaultWalletNotFoundHandler(),
-                }),
-            ];
-        }
+        try {
+            if (isAndroid() && MwaAdapter && createDefaultAddressSelector && createDefaultAuthorizationResultCache && createDefaultWalletNotFoundHandler) {
+                return [
+                    new MwaAdapter({
+                        addressSelector: createDefaultAddressSelector(),
+                        appIdentity: {
+                            name: 'Echelon',
+                            uri: 'https://echelon.app',
+                            icon: 'icons/icon-192.png',
+                        },
+                        authorizationResultCache: createDefaultAuthorizationResultCache(),
+                        cluster: network === WalletAdapterNetwork.Mainnet ? 'mainnet-beta' : network,
+                        onWalletNotFound: createDefaultWalletNotFoundHandler(),
+                    }),
+                ];
+            }
 
-        return [
-            new PhantomWalletAdapter(),
-            new SolflareWalletAdapter({ network }),
-        ];
+            return [
+                new PhantomWalletAdapter(),
+                new SolflareWalletAdapter({ network }),
+            ];
+        } catch (err) {
+            console.warn('[WalletContextProvider] Failed to initialize wallet adapters:', err);
+            return [];
+        }
     }, [network]);
 
     return (
@@ -193,4 +189,3 @@ const WalletContextProvider: FC<{ children: ReactNode }> = ({ children }) => {
 };
 
 export default WalletContextProvider;
-
