@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Echelon — Offline</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #020617;
+            color: #e2e8f0;
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', system-ui, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 24px;
+            -webkit-font-smoothing: antialiased;
+        }
+        .container {
+            text-align: center;
+            max-width: 400px;
+        }
+        .icon {
+            font-size: 64px;
+            margin-bottom: 24px;
+        }
+        h1 {
+            font-size: 24px;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 12px;
+            letter-spacing: -0.5px;
+        }
+        p {
+            font-size: 15px;
+            color: #94a3b8;
+            line-height: 1.6;
+            margin-bottom: 8px;
+        }
+        .status {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            border-radius: 8px;
+            color: #f87171;
+            font-size: 13px;
+            font-weight: 600;
+            margin-top: 16px;
+        }
+        .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ef4444;
+            animation: pulse 2s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+        .retry-btn {
+            display: inline-block;
+            margin-top: 24px;
+            padding: 12px 32px;
+            background: #7c3aed;
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .retry-btn:hover { background: #6d28d9; }
+        .retry-btn:active { background: #5b21b6; }
+        .help {
+            margin-top: 32px;
+            padding-top: 24px;
+            border-top: 1px solid rgba(255,255,255,0.06);
+        }
+        .help h2 {
+            font-size: 13px;
+            font-weight: 600;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 12px;
+        }
+        .help a {
+            color: #a78bfa;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        .help a:hover { text-decoration: underline; }
+        code {
+            background: rgba(167, 139, 250, 0.1);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 13px;
+            color: #c4b5fd;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="icon">🌐</div>
+        <h1>You're offline</h1>
+        <p>Echelon needs an internet connection to reach the I2P network and sync with your local daemon.</p>
+
+        <div class="status">
+            <span class="dot"></span>
+            No connection detected
+        </div>
+
+        <button class="retry-btn" onclick="location.reload()">Try Again</button>
+
+        <div class="help">
+            <h2>If you're connected but seeing this</h2>
+            <p style="margin-bottom: 8px;">Make sure the sync daemon is running:</p>
+            <p><code>bash ~/start-echelon.sh</code></p>
+            <p style="margin-top: 12px; font-size: 13px;">
+                <a href="https://github.com/greywolf42069/echeloni2p#readme">Setup Guide</a>
+            </p>
+        </div>
+    </div>
+</body>
+</html>

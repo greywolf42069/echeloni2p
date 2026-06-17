@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    name: build + test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js (20 LTS)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install npm deps
+        # `--ignore-scripts` skips the `usb` native build (Ledger HID
+        # support — not used by Echelon, and `node-gyp-build` is not
+        # always present on CI runners).
+        # `--legacy-peer-deps` lets the @types/react@18 ↔ react-native@0.85
+        # transitive peer-mismatch resolve (we're on React 18 by design).
+        run: npm ci --ignore-scripts --legacy-peer-deps
+
+      - name: TypeScript — tsc --noEmit
+        run: npx tsc --noEmit
+
+      - name: Vite build
+        # Build BEFORE vitest so the CDN-free regression guard
+        # (tests/build/cdnFree.test.ts) can inspect dist/index.html.
+        run: npx vite build
+
+      - name: PWA installability audit
+        # Lighthouse-lite: static checks against dist/ (manifest, icons,
+        # service worker, no-CDN). Full Lighthouse is a manual step in
+        # docs/release.md (needs headless Chrome).
+        run: node scripts/pwa_audit.mjs
+
+      - name: Vitest — unit + component tests
+        run: npx vitest run --reporter=default
+
+      - name: Set up Python (3.12)
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install pytest
+        run: python -m pip install --upgrade pip pytest
+
+      - name: pytest — sync daemon
+        run: python -m pytest scripts/tests/ -v
+
+      - name: Upload dist as artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: echelon-dist-${{ github.sha }}
+          path: dist/
+          retention-days: 7
+          if-no-files-found: error

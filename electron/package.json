@@ -1,0 +1,16 @@
+
+{
+  "name": "echelon-desktop",
+  "version": "1.0.0",
+  "description": "Desktop version of the Echelon PWA Platform",
+  "main": "index.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "dependencies": {
+    "@capacitor-community/electron": "^5.0.0"
+  },
+  "devDependencies": {
+    "electron": "^28.0.0"
+  }
+}

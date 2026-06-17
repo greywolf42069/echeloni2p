@@ -1,0 +1,520 @@
+/* ═══════════════════════════════════════════════════════════
+   Wallet Page — Robinhood-Inspired Dark Theme
+   Matches RTD Swap aesthetic
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Variables ──────────────────────────────────────────────── */
+
+:root {
+  --wlt-bg: #0a0a0f;
+  --wlt-surface: rgba(255, 255, 255, 0.03);
+  --wlt-surface-hover: rgba(255, 255, 255, 0.06);
+  --wlt-border: rgba(255, 255, 255, 0.06);
+  --wlt-border-focus: rgba(0, 212, 170, 0.4);
+  --wlt-text: #ffffff;
+  --wlt-text-secondary: rgba(255, 255, 255, 0.5);
+  --wlt-text-muted: rgba(255, 255, 255, 0.3);
+  --wlt-green: #00d4aa;
+  --wlt-green-glow: rgba(0, 212, 170, 0.15);
+  --wlt-red: #ff4466;
+  --wlt-red-glow: rgba(255, 68, 102, 0.15);
+  --wlt-radius: 16px;
+  --wlt-radius-sm: 10px;
+  --wlt-radius-xs: 6px;
+  --wlt-transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ── Page Container ─────────────────────────────────────────── */
+
+.wallet-page {
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 16px;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display",
+    "Inter", "Segoe UI", sans-serif;
+  color: var(--wlt-text);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Hero Card ──────────────────────────────────────────────── */
+
+.wallet-hero {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.04) 0%,
+    rgba(255, 255, 255, 0.01) 100%
+  );
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--wlt-border);
+  border-radius: var(--wlt-radius);
+  padding: 24px;
+  margin-bottom: 16px;
+}
+
+.hero-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.address-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--wlt-surface);
+  border: 1px solid var(--wlt-border);
+  border-radius: 999px;
+  padding: 6px 12px 6px 12px;
+  color: var(--wlt-text-secondary);
+  font-size: 12px;
+  font-family: "SF Mono", "Fira Code", monospace;
+  cursor: pointer;
+  transition: var(--wlt-transition);
+}
+
+.address-badge:hover {
+  background: var(--wlt-surface-hover);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: var(--wlt-text);
+}
+
+.copied-hint {
+  color: var(--wlt-green);
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  font-weight: 600;
+}
+
+.refresh-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--wlt-surface);
+  border: 1px solid var(--wlt-border);
+  color: var(--wlt-text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: var(--wlt-transition);
+}
+
+.refresh-btn:hover {
+  background: var(--wlt-surface-hover);
+  color: var(--wlt-text);
+}
+
+.refresh-btn.spinning svg {
+  animation: spin 0.8s linear infinite;
+}
+
+/* ── Portfolio Value ────────────────────────────────────────── */
+
+.portfolio-value-section {
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.portfolio-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--wlt-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-bottom: 4px;
+}
+
+.portfolio-value {
+  font-size: 42px;
+  font-weight: 700;
+  letter-spacing: -1.5px;
+  margin: 0;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.portfolio-change {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  margin-top: 8px;
+}
+
+.portfolio-change.positive {
+  color: var(--wlt-green);
+  background: var(--wlt-green-glow);
+}
+
+.portfolio-change.negative {
+  color: var(--wlt-red);
+  background: var(--wlt-red-glow);
+}
+
+/* ── Swap CTA Button ──────────────────────────────────────────── */
+
+.portfolio-cta-row {
+  margin-top: 12px;
+}
+
+.portfolio-swap-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border: 1px solid rgba(168, 85, 247, 0.4);
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.15), rgba(168, 85, 247, 0.05));
+  color: #c084fc;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  letter-spacing: 0.01em;
+}
+
+.portfolio-swap-btn:hover {
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.25), rgba(168, 85, 247, 0.1));
+  border-color: rgba(168, 85, 247, 0.6);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(168, 85, 247, 0.2);
+}
+
+.portfolio-swap-btn:active {
+  transform: translateY(0);
+}
+
+.portfolio-swap-arrow {
+  font-size: 16px;
+  transition: transform 0.2s;
+}
+
+.portfolio-swap-btn:hover .portfolio-swap-arrow {
+  transform: translateX(2px);
+}
+
+/* ── Quick Actions ──────────────────────────────────────────── */
+
+.quick-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.action-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px;
+  border: none;
+  border-radius: var(--wlt-radius-sm);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--wlt-transition);
+}
+
+.action-btn.send {
+  background: linear-gradient(135deg, #00d4aa 0%, #00a885 100%);
+  color: #000;
+  box-shadow: 0 4px 20px rgba(0, 212, 170, 0.25);
+}
+
+.action-btn.send:hover {
+  box-shadow: 0 6px 28px rgba(0, 212, 170, 0.35);
+  transform: translateY(-1px);
+}
+
+.action-btn.receive {
+  background: var(--wlt-surface);
+  border: 1px solid var(--wlt-border);
+  color: var(--wlt-text);
+}
+
+.action-btn.receive:hover {
+  background: var(--wlt-surface-hover);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+/* ── Sections ───────────────────────────────────────────────── */
+
+.wallet-section {
+  margin-bottom: 16px;
+}
+
+.section-title {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  margin: 0 0 12px 0;
+}
+
+/* ── Token List ─────────────────────────────────────────────── */
+
+.token-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ── Activity Section ───────────────────────────────────────── */
+
+.activity-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.activity-header .section-title {
+  margin-bottom: 0;
+}
+
+.filter-pills {
+  display: flex;
+  gap: 4px;
+  background: var(--wlt-surface);
+  border-radius: 8px;
+  padding: 3px;
+}
+
+.filter-pill {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--wlt-transition);
+  background: transparent;
+  color: var(--wlt-text-muted);
+}
+
+.filter-pill:hover {
+  color: var(--wlt-text-secondary);
+}
+
+.filter-pill.active {
+  background: var(--wlt-surface-hover);
+  color: var(--wlt-text);
+}
+
+/* ── Search ─────────────────────────────────────────────────── */
+
+.search-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--wlt-surface);
+  border: 1px solid var(--wlt-border);
+  border-radius: var(--wlt-radius-sm);
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  transition: var(--wlt-transition);
+}
+
+.search-wrapper:focus-within {
+  border-color: var(--wlt-border-focus);
+  background: var(--wlt-surface-hover);
+}
+
+.search-wrapper svg {
+  color: var(--wlt-text-muted);
+  flex-shrink: 0;
+}
+
+.search-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--wlt-text);
+  font-size: 14px;
+}
+
+.search-input::placeholder {
+  color: var(--wlt-text-muted);
+}
+
+/* ── Transaction List ───────────────────────────────────────── */
+
+.tx-list {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.04) 0%,
+    rgba(255, 255, 255, 0.01) 100%
+  );
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--wlt-border);
+  border-radius: var(--wlt-radius);
+  overflow: hidden;
+}
+
+.wallet-tx-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  text-decoration: none;
+  color: inherit;
+  transition: var(--wlt-transition);
+  border-bottom: 1px solid var(--wlt-border);
+}
+
+.wallet-tx-row:last-child {
+  border-bottom: none;
+}
+
+.wallet-tx-row:hover {
+  background: var(--wlt-surface-hover);
+}
+
+.tx-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.tx-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tx-icon.send {
+  background: var(--wlt-red-glow);
+  color: var(--wlt-red);
+}
+
+.tx-icon.receive {
+  background: var(--wlt-green-glow);
+  color: var(--wlt-green);
+}
+
+.tx-type {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.tx-party {
+  font-size: 12px;
+  color: var(--wlt-text-muted);
+  font-family: "SF Mono", "Fira Code", monospace;
+  margin: 2px 0 0 0;
+}
+
+.tx-right {
+  text-align: right;
+}
+
+.tx-amount {
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  margin: 0;
+}
+
+.tx-amount.send {
+  color: var(--wlt-red);
+}
+
+.tx-amount.receive {
+  color: var(--wlt-green);
+}
+
+.tx-time {
+  font-size: 12px;
+  color: var(--wlt-text-muted);
+  margin: 2px 0 0 0;
+}
+
+/* ── Empty State ────────────────────────────────────────────── */
+
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.empty-icon {
+  font-size: 32px;
+  margin: 0 0 8px 0;
+}
+
+.empty-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--wlt-text-secondary);
+  margin: 0 0 4px 0;
+}
+
+.empty-hint {
+  font-size: 13px;
+  color: var(--wlt-text-muted);
+  margin: 0;
+}
+
+/* ── Footer ─────────────────────────────────────────────────── */
+
+.wallet-footer {
+  display: flex;
+  justify-content: center;
+  padding: 16px 0;
+}
+
+.wallet-footer .footer-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--wlt-text-muted);
+  text-decoration: none;
+  transition: var(--wlt-transition);
+}
+
+.wallet-footer .footer-link:hover {
+  color: var(--wlt-text-secondary);
+}
+
+/* ── Animations ─────────────────────────────────────────────── */
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Responsive ─────────────────────────────────────────────── */
+
+@media (max-width: 480px) {
+  .wallet-page {
+    padding: 12px;
+  }
+
+  .wallet-hero {
+    padding: 16px;
+  }
+
+  .portfolio-value {
+    font-size: 34px;
+  }
+
+  .action-btn {
+    padding: 12px;
+    font-size: 14px;
+  }
+
+  .activity-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+}

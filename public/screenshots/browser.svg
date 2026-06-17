@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1920" viewBox="0 0 1080 1920">
+  <rect width="1080" height="1920" fill="#020617"/>
+  <rect x="40" y="100" width="1000" height="60" rx="12" fill="#1e293b"/>
+  <text x="80" y="140" fill="#94a3b8" font-family="monospace" font-size="20">reg.i2p</text>
+  <rect x="40" y="180" width="1000" height="800" rx="12" fill="#1e293b"/>
+  <text x="80" y="240" fill="#a78bfa" font-family="system-ui" font-size="28" font-weight="bold">I2P Browser</text>
+  <text x="80" y="280" fill="#64748b" font-family="system-ui" font-size="18">Multi-tab • Private • Encrypted</text>
+  <rect x="80" y="320" width="400" height="200" rx="8" fill="#7c3aed" opacity="0.2"/>
+  <text x="100" y="370" fill="#c4b5fd" font-family="system-ui" font-size="16">reg.i2p</text>
+  <text x="100" y="400" fill="#94a3b8" font-family="system-ui" font-size="14">I2P Network Registry</text>
+  <rect x="520" y="320" width="400" height="200" rx="8" fill="#7c3aed" opacity="0.2"/>
+  <text x="540" y="370" fill="#c4b5fd" font-family="system-ui" font-size="16">notbob.i2p</text>
+  <text x="540" y="400" fill="#94a3b8" font-family="system-ui" font-size="14">I2P Search Engine</text>
+  <rect x="40" y="1020" width="1000" height="80" rx="12" fill="#1e293b"/>
+  <text x="440" y="1070" fill="#00d4aa" font-family="system-ui" font-size="22" font-weight="bold" text-anchor="middle">ECHELON</text>
+  <text x="440" y="1850" fill="#475569" font-family="system-ui" font-size="16" text-anchor="middle">Decentralized I2P Meshnet</text>
+</svg>

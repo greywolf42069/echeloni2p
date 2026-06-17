@@ -1,0 +1,12 @@
+# Generated outputs from simulator runs.
+outputs/
+
+# Python build / cache artifacts
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+.coverage
+
+# Editor
+.vscode/

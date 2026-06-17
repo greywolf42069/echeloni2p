@@ -1,0 +1,90 @@
+/* Echelon global stylesheet — build-time Tailwind (replaces the
+   cdn.tailwindcss.com runtime script) + bundled wallet-adapter CSS
+   (replaces the unpkg <link>) + the small custom overrides that used
+   to live inline in index.html.
+
+   Vite resolves the bare `@solana/...` import from node_modules and
+   inlines it into the built CSS bundle, so the production app makes
+   ZERO third-party requests on load. */
+
+@import '@solana/wallet-adapter-react-ui/styles.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ---- Custom keyframes / utilities ---------------------------------- */
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.animate-spin-slow {
+    animation: spin 3s linear infinite;
+}
+
+/* ---- Wallet Adapter button overrides ------------------------------- */
+/* These shape @solana/wallet-adapter-react-ui's default button to match
+   Echelon's purple design system. Kept as !important because the
+   library ships its own specificity. */
+
+.wallet-adapter-button-trigger {
+    background-color: #7c3aed !important; /* purple-600 */
+    transition: background-color 300ms ease-in-out !important;
+    font-weight: 600 !important;
+    border-radius: 0.5rem !important;
+    height: auto !important;
+    padding: 0.75rem 1.25rem !important;
+    font-family: inherit !important;
+    font-size: 0.875rem !important;
+    line-height: 1.25rem !important;
+}
+
+.wallet-adapter-button-trigger:hover {
+    background-color: #6d28d9 !important; /* purple-700 */
+}
+
+.wallet-adapter-button-trigger i.wallet-adapter-button-icon {
+    width: 1.25rem !important;
+    height: 1.25rem !important;
+    margin-right: 0.5rem !important;
+}
+
+/* Apple-quality mobile layout helpers */
+@supports (padding: env(safe-area-inset-bottom)) {
+  :root {
+    --safe-bottom: env(safe-area-inset-bottom);
+    --safe-top: env(safe-area-inset-top);
+  }
+}
+
+/* Ensure scrollable content never gets cut off by the fixed bottom nav on notched devices */
+.safe-bottom {
+  padding-bottom: calc(5.5rem + var(--safe-bottom, 0px));
+}
+
+@media (min-width: 640px) {
+  .safe-bottom {
+    padding-bottom: calc(6rem + var(--safe-bottom, 0px));
+  }
+}
+
+/* Better mobile scrolling behavior */
+main {
+  overscroll-behavior-y: contain;
+}
+
+/* Dynamic viewport support for modern mobile browsers */
+@supports (height: 100dvh) {
+  .h-dvh {
+    height: 100dvh;
+  }
+}
+
+/* Prevent content from being hidden behind the fixed bottom nav on iOS */
+html, body {
+  /* Use dynamic viewport where supported */
+  height: 100dvh;
+}

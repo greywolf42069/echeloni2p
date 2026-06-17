@@ -1,0 +1,128 @@
+/* ═══════════════════════════════════════════════════════════
+   TokenBalanceCard — Robinhood-Style Token Row
+   ═══════════════════════════════════════════════════════════ */
+
+:root {
+  --tbc-surface: rgba(255, 255, 255, 0.03);
+  --tbc-surface-hover: rgba(255, 255, 255, 0.06);
+  --tbc-border: rgba(255, 255, 255, 0.06);
+  --tbc-text: #ffffff;
+  --tbc-text-secondary: rgba(255, 255, 255, 0.5);
+  --tbc-text-muted: rgba(255, 255, 255, 0.3);
+  --tbc-green: #00d4aa;
+  --tbc-red: #ff4466;
+}
+
+.token-balance-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.04) 0%,
+    rgba(255, 255, 255, 0.01) 100%
+  );
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--tbc-border);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.token-balance-card:hover {
+  background: var(--tbc-surface-hover);
+  border-color: rgba(255, 255, 255, 0.1);
+  transform: translateY(-1px);
+}
+
+/* ── Left: Token Info ───────────────────────────────────────── */
+
+.tbc-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  flex: 1;
+}
+
+.tbc-icon-wrapper {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.tbc-icon-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.tbc-icon-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.3), rgba(34, 211, 238, 0.3));
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--tbc-text);
+}
+
+.tbc-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--tbc-text);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+}
+
+.tbc-symbol {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--tbc-text-muted);
+  margin: 2px 0 0 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ── Center: Sparkline ──────────────────────────────────────── */
+
+.tbc-center {
+  flex-shrink: 0;
+  padding: 0 12px;
+}
+
+.token-mini-sparkline {
+  display: block;
+}
+
+/* ── Right: Values ──────────────────────────────────────────── */
+
+.tbc-right {
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.tbc-balance {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--tbc-text);
+  font-variant-numeric: tabular-nums;
+  margin: 0;
+}
+
+.tbc-usd {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--tbc-text-secondary);
+  font-variant-numeric: tabular-nums;
+  margin: 2px 0 0 0;
+}

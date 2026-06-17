@@ -1,0 +1,107 @@
+{
+  "id": "./?source=pwa",
+  "name": "Echelon: Decentralized I2P Meshnet",
+  "short_name": "Echelon",
+  "description": "Mobile-first I2P browser, eepsite hosting, and AI-assisted eepsite IDE. Browse the invisible internet, host your own private sites, and bridge to clearnet — all through your own local i2pd node.",
+  "lang": "en",
+  "dir": "ltr",
+  "start_url": "./?source=pwa",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait-primary",
+  "theme_color": "#111827",
+  "background_color": "#020617",
+  "categories": ["productivity", "utilities", "developer"],
+  "prefer_related_applications": false,
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
+  "icons": [
+    {
+      "src": "./icons/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/icon-192-maskable.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "maskable"
+    },
+    {
+      "src": "./icons/icon-512-maskable.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "maskable"
+    },
+    {
+      "src": "./icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "I2P Browser",
+      "short_name": "Browser",
+      "description": "Open the multi-tab I2P browser",
+      "url": "./?source=pwa&shortcut=browser",
+      "icons": [{ "src": "./icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Eepsite IDE",
+      "short_name": "IDE",
+      "description": "Build and edit your eepsites",
+      "url": "./?source=pwa&shortcut=editor",
+      "icons": [{ "src": "./icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Wallet",
+      "short_name": "Wallet",
+      "description": "View balances and subscription",
+      "url": "./?source=pwa&shortcut=wallet",
+      "icons": [{ "src": "./icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ],
+  "share_target": {
+    "action": "./?share-target",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  },
+  "screenshots": [
+    {
+      "src": "./screenshots/browser.svg",
+      "sizes": "1080x1920",
+      "type": "image/svg+xml",
+      "form_factor": "narrow",
+      "label": "I2P Browser with multi-tab support"
+    },
+    {
+      "src": "./screenshots/ide.svg",
+      "sizes": "1080x1920",
+      "type": "image/svg+xml",
+      "form_factor": "narrow",
+      "label": "AI-assisted eepsite IDE with git"
+    },
+    {
+      "src": "./screenshots/dashboard.svg",
+      "sizes": "1080x1920",
+      "type": "image/svg+xml",
+      "form_factor": "narrow",
+      "label": "Dashboard with real network telemetry"
+    }
+  ]
+}

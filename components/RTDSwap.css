@@ -1,0 +1,710 @@
+/* ═══════════════════════════════════════════════════════════
+   RTD Swap — Robinhood-Inspired Dark Theme
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Variables ──────────────────────────────────────────────── */
+
+:root {
+  /* Core palette */
+  --rtd-bg: #0a0a0f;
+  --rtd-surface: rgba(255, 255, 255, 0.03);
+  --rtd-surface-hover: rgba(255, 255, 255, 0.06);
+  --rtd-surface-active: rgba(255, 255, 255, 0.08);
+  --rtd-border: rgba(255, 255, 255, 0.06);
+  --rtd-border-focus: rgba(0, 212, 170, 0.4);
+
+  /* Text */
+  --rtd-text: #ffffff;
+  --rtd-text-secondary: rgba(255, 255, 255, 0.5);
+  --rtd-text-muted: rgba(255, 255, 255, 0.3);
+
+  /* Accent */
+  --rtd-green: #00d4aa;
+  --rtd-green-glow: rgba(0, 212, 170, 0.15);
+  --rtd-green-hover: #00eabb;
+  --rtd-red: #ff4466;
+  --rtd-red-glow: rgba(255, 68, 102, 0.15);
+  --rtd-red-hover: #ff5577;
+
+  /* Gradient */
+  --rtd-gradient-green: linear-gradient(135deg, #00d4aa 0%, #00a885 100%);
+  --rtd-gradient-red: linear-gradient(135deg, #ff4466 0%, #cc2244 100%);
+  --rtd-gradient-card: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.04) 0%,
+    rgba(255, 255, 255, 0.01) 100%
+  );
+
+  /* Shadows */
+  --rtd-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+  --rtd-shadow-lg: 0 8px 48px rgba(0, 0, 0, 0.6);
+  --rtd-glow-green: 0 0 40px rgba(0, 212, 170, 0.15);
+  --rtd-glow-red: 0 0 40px rgba(255, 68, 102, 0.15);
+
+  /* Radii */
+  --rtd-radius: 16px;
+  --rtd-radius-sm: 10px;
+  --rtd-radius-xs: 6px;
+  --rtd-radius-pill: 999px;
+
+  /* Transitions */
+  --rtd-transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  --rtd-transition-fast: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ── Container ──────────────────────────────────────────────── */
+
+.rtd-swap {
+  max-width: 420px;
+  margin: 0 auto;
+  padding: 16px;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display",
+    "Inter", "Segoe UI", sans-serif;
+  color: var(--rtd-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Hero Card ──────────────────────────────────────────────── */
+
+.swap-hero {
+  background: var(--rtd-gradient-card);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--rtd-border);
+  border-radius: var(--rtd-radius);
+  padding: 20px;
+  margin-bottom: 12px;
+}
+
+.hero-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+
+.token-identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.token-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--rtd-gradient-green);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--rtd-glow-green);
+}
+
+.icon-glyph {
+  font-size: 22px;
+}
+
+.token-name {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  margin: 0;
+  line-height: 1;
+}
+
+.token-full {
+  font-size: 13px;
+  color: var(--rtd-text-secondary);
+  margin-top: 2px;
+  display: block;
+}
+
+.hero-price {
+  text-align: right;
+}
+
+.price-main {
+  font-size: 22px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  display: block;
+  letter-spacing: -0.3px;
+}
+
+.price-change {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: var(--rtd-radius-pill);
+  display: inline-block;
+  margin-top: 4px;
+}
+
+.price-change.positive {
+  color: var(--rtd-green);
+  background: var(--rtd-green-glow);
+}
+
+.price-change.negative {
+  color: var(--rtd-red);
+  background: var(--rtd-red-glow);
+}
+
+/* ── Chart ──────────────────────────────────────────────────── */
+
+.hero-chart {
+  margin: 8px -4px 16px;
+  opacity: 0.9;
+}
+
+.sparkline {
+  width: 100%;
+  height: 40px;
+}
+
+/* ── Stats Row ──────────────────────────────────────────────── */
+
+.hero-stats {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.hero-stats::-webkit-scrollbar {
+  display: none;
+}
+
+.stat-pill {
+  flex: 1;
+  min-width: 0;
+  background: var(--rtd-surface);
+  border-radius: var(--rtd-radius-xs);
+  padding: 8px 10px;
+  text-align: center;
+}
+
+.stat-label {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--rtd-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: block;
+  margin-bottom: 2px;
+}
+
+.stat-value {
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--rtd-text-secondary);
+}
+
+/* ── Swap Card ──────────────────────────────────────────────── */
+
+.swap-card {
+  background: var(--rtd-gradient-card);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--rtd-border);
+  border-radius: var(--rtd-radius);
+  padding: 16px;
+  transition: var(--rtd-transition);
+}
+
+.swap-card.focused {
+  border-color: var(--rtd-border-focus);
+  box-shadow: var(--rtd-glow-green);
+}
+
+/* ── Direction Toggle ───────────────────────────────────────── */
+
+.direction-toggle {
+  display: flex;
+  background: var(--rtd-surface);
+  border-radius: var(--rtd-radius-sm);
+  padding: 3px;
+  margin-bottom: 20px;
+}
+
+.toggle-btn {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--rtd-transition);
+  background: transparent;
+  color: var(--rtd-text-secondary);
+}
+
+.toggle-btn:hover {
+  color: var(--rtd-text);
+}
+
+.toggle-btn.active.buy {
+  background: var(--rtd-gradient-green);
+  color: #000;
+  box-shadow: 0 2px 12px rgba(0, 212, 170, 0.3);
+}
+
+.toggle-btn.active.sell {
+  background: var(--rtd-gradient-red);
+  color: #fff;
+  box-shadow: 0 2px 12px rgba(255, 68, 102, 0.3);
+}
+
+/* ── Input Section ──────────────────────────────────────────── */
+
+.swap-input-section {
+  transition: var(--rtd-transition);
+}
+
+.swap-input-section.flipping {
+  opacity: 0;
+  transform: scale(0.95);
+}
+
+.input-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.input-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--rtd-text-secondary);
+}
+
+.balance-hint {
+  font-size: 12px;
+  color: var(--rtd-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.big-input-wrapper {
+  display: flex;
+  align-items: center;
+  background: var(--rtd-surface);
+  border: 1px solid var(--rtd-border);
+  border-radius: var(--rtd-radius-sm);
+  padding: 16px;
+  transition: var(--rtd-transition);
+  gap: 12px;
+}
+
+.big-input-wrapper.focused {
+  border-color: var(--rtd-border-focus);
+  background: var(--rtd-surface-hover);
+}
+
+.big-input-wrapper.output {
+  opacity: 0.7;
+}
+
+.input-currency {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--rtd-text);
+  white-space: nowrap;
+  min-width: 36px;
+}
+
+.big-input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--rtd-text);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  letter-spacing: -0.5px;
+}
+
+.big-input::placeholder {
+  color: var(--rtd-text-muted);
+}
+
+/* Remove number input arrows */
+.big-input::-webkit-outer-spin-button,
+.big-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.big-input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+.big-output {
+  flex: 1;
+  min-width: 0;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--rtd-text);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  letter-spacing: -0.5px;
+  opacity: 0.8;
+}
+
+/* ── Quick Amounts ──────────────────────────────────────────── */
+
+.quick-amounts {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.quick-btn {
+  flex: 1;
+  padding: 8px;
+  background: var(--rtd-surface);
+  border: 1px solid var(--rtd-border);
+  border-radius: var(--rtd-radius-xs);
+  color: var(--rtd-text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--rtd-transition);
+}
+
+.quick-btn:hover {
+  background: var(--rtd-surface-hover);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: var(--rtd-text);
+}
+
+.quick-btn.active {
+  background: var(--rtd-green-glow);
+  border-color: var(--rtd-green);
+  color: var(--rtd-green);
+}
+
+/* ── Arrow ──────────────────────────────────────────────────── */
+
+.swap-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 16px 0;
+  color: var(--rtd-text-muted);
+}
+
+.arrow-line {
+  flex: 1;
+  height: 1px;
+  background: var(--rtd-border);
+}
+
+.arrow-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--rtd-surface);
+  border: 1px solid var(--rtd-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  transition: var(--rtd-transition);
+  cursor: pointer;
+}
+
+.arrow-icon:hover {
+  background: var(--rtd-surface-hover);
+  border-color: rgba(255, 255, 255, 0.12);
+  transform: scale(1.1);
+}
+
+/* ── Swap Details ───────────────────────────────────────────── */
+
+.swap-details {
+  background: var(--rtd-surface);
+  border-radius: var(--rtd-radius-xs);
+  padding: 12px;
+  margin-top: 16px;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+  font-size: 12px;
+}
+
+.detail-row span:first-child {
+  color: var(--rtd-text-muted);
+}
+
+.detail-row span:last-child {
+  color: var(--rtd-text-secondary);
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+/* ── Messages ───────────────────────────────────────────────── */
+
+.swap-message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  border-radius: var(--rtd-radius-xs);
+  margin-top: 12px;
+  font-size: 13px;
+  font-weight: 500;
+  animation: slideUp 0.3s ease-out;
+}
+
+.swap-message.error {
+  background: var(--rtd-red-glow);
+  color: var(--rtd-red);
+  border: 1px solid rgba(255, 68, 102, 0.2);
+}
+
+.swap-message.success {
+  background: var(--rtd-green-glow);
+  color: var(--rtd-green);
+  border: 1px solid rgba(0, 212, 170, 0.2);
+}
+
+.msg-icon {
+  font-size: 16px;
+}
+
+/* ── Execute Button ─────────────────────────────────────────── */
+
+.swap-execute-btn {
+  width: 100%;
+  padding: 16px;
+  border: none;
+  border-radius: var(--rtd-radius-sm);
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: var(--rtd-transition);
+  margin-top: 16px;
+  position: relative;
+  overflow: hidden;
+  letter-spacing: 0.3px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  text-align: center;
+}
+
+.swap-execute-btn.buy {
+  background: var(--rtd-gradient-green);
+  color: #000;
+  box-shadow: 0 4px 20px rgba(0, 212, 170, 0.3);
+}
+
+.swap-execute-btn.buy:hover:not(:disabled) {
+  background: linear-gradient(135deg, var(--rtd-green-hover) 0%, #00b895 100%);
+  box-shadow: 0 6px 28px rgba(0, 212, 170, 0.4);
+  transform: translateY(-1px);
+}
+
+.swap-execute-btn.buy:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.swap-execute-btn.sell {
+  background: var(--rtd-gradient-red);
+  color: #fff;
+  box-shadow: 0 4px 20px rgba(255, 68, 102, 0.3);
+}
+
+.swap-execute-btn.sell:hover:not(:disabled) {
+  background: linear-gradient(135deg, var(--rtd-red-hover) 0%, #dd3355 100%);
+  box-shadow: 0 6px 28px rgba(255, 68, 102, 0.4);
+  transform: translateY(-1px);
+}
+
+.swap-execute-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.swap-execute-btn.prelaunch {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(0, 212, 170, 0.08));
+  color: var(--rtd-text);
+  border: 1px solid rgba(0, 212, 170, 0.22);
+  opacity: 1;
+  cursor: default;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28), inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+}
+
+.swap-execute-btn.prelaunch:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
+.swap-execute-btn.prelaunch .btn-copy {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.swap-execute-btn.prelaunch .btn-subcopy {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--rtd-text-secondary);
+}
+
+.swap-execute-btn.prelaunch:hover {
+  transform: translateY(-1px);
+  border-color: rgba(0, 212, 170, 0.35);
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.34), 0 0 24px rgba(0, 212, 170, 0.08);
+}
+
+.swap-execute-btn.loading {
+  pointer-events: none;
+}
+
+/* Spinner */
+.btn-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(0, 0, 0, 0.2);
+  border-top-color: #000;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  margin: 0 auto;
+}
+
+.sell .btn-spinner {
+  border-color: rgba(255, 255, 255, 0.2);
+  border-top-color: #fff;
+}
+
+/* ── Footer ─────────────────────────────────────────────────── */
+
+.swap-footer {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  margin-top: 16px;
+  padding-top: 16px;
+}
+
+.footer-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--rtd-text-muted);
+  text-decoration: none;
+  transition: var(--rtd-transition);
+}
+
+.footer-link:hover {
+  color: var(--rtd-text-secondary);
+}
+
+.footer-link span {
+  font-size: 14px;
+}
+
+/* ── Animations ─────────────────────────────────────────────── */
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+/* ── Responsive ─────────────────────────────────────────────── */
+
+@media (max-width: 480px) {
+  .rtd-swap {
+    padding: 12px;
+  }
+
+  .swap-hero {
+    padding: 16px;
+  }
+
+  .token-name {
+    font-size: 20px;
+  }
+
+  .price-main {
+    font-size: 18px;
+  }
+
+  .big-input,
+  .big-output {
+    font-size: 24px;
+  }
+
+  .hero-stats {
+    gap: 6px;
+  }
+
+  .stat-pill {
+    padding: 6px 8px;
+  }
+
+  .quick-amounts {
+    gap: 6px;
+  }
+}
+
+/* ── Dark Scrollbar ─────────────────────────────────────────── */
+
+.rtd-swap ::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.rtd-swap ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.rtd-swap ::-webkit-scrollbar-thumb {
+  background: var(--rtd-border);
+  border-radius: 2px;
+}
+
+.rtd-swap ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.12);
+}

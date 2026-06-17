@@ -1,0 +1,7 @@
+{
+  "electron": {
+    "launchShow": true,
+    "launchFullscreen": false,
+    "unhandledRejectionPolicy": "warn"
+  }
+}
