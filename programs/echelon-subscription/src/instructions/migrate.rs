@@ -1,18 +1,25 @@
-//! `migrate_from_v0_1` — authority-gated backfill of a v0.1 subscriber's history
-//! into an on-chain `Subscription` PDA.
+//! `migrate_from_v0_1` — authority-gated backfill of v0.1 localStorage history.
 //!
-//! Trust model (same as the template-entitlement migration): the v0.1 buyer's
-//! payments are already on-chain as USDC transfers; the v0.1 *record* is
-//! local-only. The foundation backend verifies the recorded transfer signature
-//! against on-chain history off-band, then signs this instruction to vouch for
-//! the backfilled state. Only creates fresh PDAs — it will not overwrite a
-//! subscriber who has already transacted natively on v0.2.
+//! Trust model: the v0.1 buyer's USDC transfers are on-chain; the v0.1 *record*
+//! is local-only. The foundation backend verifies `last_payment_signature` off-
+//! band, then signs this instruction. Only creates fresh PDAs — never overwrites
+//! an active v0.2 subscriber.
+//!
+//! Sanity checks on input data prevent authority from injecting absurd airdrop
+//! weights (e.g. expires_at before started_at, zero payments for paid tiers).
 
 use anchor_lang::prelude::*;
 
-use crate::constants::*;
+use crate::constants::{CONFIG_SEED, SUBSCRIPTION_SEED};
 use crate::errors::EchelonError;
 use crate::state::{Config, Subscription, SubscriptionTier};
+
+#[event]
+pub struct V01MigratedEvent {
+    pub subscriber: Pubkey,
+    pub months_paid: u32,
+    pub is_seeker_holder: bool,
+}
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct MigrateArgs {
@@ -40,8 +47,7 @@ pub struct MigrateFromV01<'info> {
     )]
     pub config: Account<'info, Config>,
 
-    /// CHECK: the v0.1 subscriber whose history is migrated; used only as a PDA
-    /// seed and stored as `subscription.subscriber`.
+    /// CHECK: the v0.1 subscriber whose history is migrated.
     pub subscriber: UncheckedAccount<'info>,
 
     #[account(
@@ -57,13 +63,26 @@ pub struct MigrateFromV01<'info> {
 }
 
 pub fn migrate_from_v0_1(ctx: Context<MigrateFromV01>, args: MigrateArgs) -> Result<()> {
-    let sub = &mut ctx.accounts.subscription;
-    // Refuse to clobber an account that already exists on-chain.
+    // Refuse to overwrite an account that has already transacted on v0.2.
     require!(
-        sub.subscriber == Pubkey::default(),
+        ctx.accounts.subscription.subscriber == Pubkey::default(),
         EchelonError::AlreadyMigrated
     );
 
+    // Respect pause — backfills should also halt during incidents.
+    require!(!ctx.accounts.config.paused, EchelonError::Paused);
+
+    // Basic sanity on migrated data (audit finding: prevent injecting bogus weights).
+    require!(
+        args.expires_at >= args.started_at,
+        EchelonError::InvalidMigrationData
+    );
+    if args.tier.is_paid() {
+        require!(args.total_usdc_paid > 0, EchelonError::InvalidMigrationData);
+        require!(args.months_paid > 0, EchelonError::InvalidMigrationData);
+    }
+
+    let sub = &mut ctx.accounts.subscription;
     sub.subscriber = ctx.accounts.subscriber.key();
     sub.tier = args.tier;
     sub.months_paid = args.months_paid;
@@ -75,6 +94,13 @@ pub fn migrate_from_v0_1(ctx: Context<MigrateFromV01>, args: MigrateArgs) -> Res
     sub.total_eepgen_tokens_used = args.total_eepgen_tokens_used;
     sub.total_template_purchases = args.total_template_purchases.min(1);
     sub.last_payment_signature = args.last_payment_signature;
+    sub.last_usage_nonce = 0;
     sub.bump = ctx.bumps.subscription;
+
+    emit!(V01MigratedEvent {
+        subscriber: sub.subscriber,
+        months_paid: sub.months_paid,
+        is_seeker_holder: sub.is_seeker_holder,
+    });
     Ok(())
 }

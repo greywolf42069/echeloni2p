@@ -1,19 +1,21 @@
-//! `subscribe` — the core flow. Takes USDC into the program-owned vault and
-//! creates/updates the subscriber's `Subscription` PDA. On the *first*
-//! subscribe it evaluates the verified-collection Seeker boost (20% discount +
-//! `is_seeker_holder = true`, which doubles airdrop weight in v0.2).
+//! `subscribe` — core subscription flow.
 //!
-//! Seeker accounts are passed as optional, typed accounts (Anchor 0.30) rather
-//! than raw `remaining_accounts`: it is the same data, but type-checked and
-//! self-documenting in the IDL. Both must be present to be evaluated.
+//! Security properties:
+//!   - CEI order: all state mutations happen BEFORE the CPI token transfer.
+//!   - Slippage guard: subscriber provides `max_price_micros`; aborts if computed
+//!     price exceeds it, protecting against authority front-running price changes.
+//!   - Seeker boost: evaluated once, on first subscribe, via verified-collection
+//!     check (mirrors hooks/seekerVerification.ts). Fail-safe: any hiccup returns
+//!     false rather than aborting the transaction.
 
 use anchor_lang::prelude::*;
 use anchor_spl::metadata::MetadataAccount;
 use anchor_spl::token::{self, Token, TokenAccount, Transfer};
 
-use crate::constants::*;
+use crate::constants::{is_qualifying_collection, METADATA_PROGRAM_ID, SUBSCRIPTION_SEED, CONFIG_SEED};
 use crate::errors::EchelonError;
-use crate::state::{Subscription, SubscriptionTier};
+use crate::logic::{apply_discount, new_expiry, subscription_price};
+use crate::state::{Config, Subscription, SubscriptionTier};
 
 #[event]
 pub struct SubscribedEvent {
@@ -31,7 +33,7 @@ pub struct Subscribe<'info> {
     pub subscriber: Signer<'info>,
 
     #[account(seeds = [CONFIG_SEED], bump = config.bump)]
-    pub config: Account<'info, crate::state::Config>,
+    pub config: Account<'info, Config>,
 
     #[account(
         init_if_needed,
@@ -42,59 +44,67 @@ pub struct Subscribe<'info> {
     )]
     pub subscription: Account<'info, Subscription>,
 
+    /// Subscriber's USDC token account; validated against `config.accepted_stable_mint`.
     #[account(
         mut,
-        constraint = subscriber_usdc.mint == config.usdc_mint @ EchelonError::WrongMint,
-        constraint = subscriber_usdc.owner == subscriber.key() @ EchelonError::WrongMint,
+        token::mint = config.accepted_stable_mint,
+        token::authority = subscriber,
     )]
-    pub subscriber_usdc: Account<'info, TokenAccount>,
+    pub subscriber_stable: Account<'info, TokenAccount>,
 
-    #[account(mut, address = config.vault)]
+    /// Program-owned USDC vault: any token account where the SPL authority is the
+    /// Config PDA. The program does not store the vault address — validation here
+    /// is sufficient; an invalid vault would cause the CPI to fail or the treasury
+    /// balance to go somewhere the program can never reclaim.
+    #[account(
+        mut,
+        token::mint = config.accepted_stable_mint,
+        token::authority = config,
+    )]
     pub vault: Account<'info, TokenAccount>,
 
-    /// Optional: the subscriber's Genesis NFT token account (amount == 1).
+    /// Optional: subscriber's Genesis NFT token account (amount == 1, decimals == 0).
     pub genesis_token_account: Option<Account<'info, TokenAccount>>,
-    /// Optional: the Metaplex metadata account for that NFT's mint.
+    /// Optional: Metaplex metadata for the Genesis NFT's mint.
     pub genesis_metadata: Option<Account<'info, MetadataAccount>>,
 
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
 }
 
+// `max_price_micros`: subscriber's acceptable price ceiling in micro-USDC (slippage guard).
+// The tx aborts if the computed price exceeds this, preventing front-running
+// by an authority who raises prices between the subscriber's signing and on-chain execution.
 pub fn subscribe(
     ctx: Context<Subscribe>,
     tier: SubscriptionTier,
     duration_months: u8,
+    max_price_micros: u64,
 ) -> Result<()> {
     let config = &ctx.accounts.config;
     require!(!config.paused, EchelonError::Paused);
     require!(tier.is_paid(), EchelonError::InvalidTier);
     require!(
-        (1..=MAX_DURATION_MONTHS).contains(&duration_months),
+        (1..=crate::constants::MAX_DURATION_MONTHS).contains(&duration_months),
         EchelonError::InvalidDuration
     );
 
-    let monthly = match tier {
-        SubscriptionTier::Plus => config.plus_price_micros,
-        SubscriptionTier::Privacy => config.privacy_price_micros,
-        SubscriptionTier::Operator => config.operator_price_micros,
-        SubscriptionTier::Free => return err!(EchelonError::InvalidTier),
-    };
-    let mut price = monthly
-        .checked_mul(duration_months as u64)
-        .ok_or(EchelonError::Overflow)?;
+    // ── Compute price ────────────────────────────────────────────────────
+    let mut price = subscription_price(
+        tier,
+        duration_months,
+        config.plus_price_micros,
+        config.privacy_price_micros,
+        config.operator_price_micros,
+    )
+    .ok_or(EchelonError::Overflow)?;
 
     let is_first = ctx.accounts.subscription.subscriber == Pubkey::default();
 
-    // Seeker boost is evaluated once, on first subscribe, then persists.
+    // Seeker boost: evaluated once on first subscribe, persists afterwards.
     let is_seeker = if is_first {
-        match (
-            &ctx.accounts.genesis_token_account,
-            &ctx.accounts.genesis_metadata,
-        ) {
-            (Some(token_acc), Some(metadata)) => {
-                verify_seeker(token_acc, metadata, &ctx.accounts.subscriber.key())
-            }
+        match (&ctx.accounts.genesis_token_account, &ctx.accounts.genesis_metadata) {
+            (Some(ta), Some(md)) => verify_genesis(ta, md, &ctx.accounts.subscriber.key()),
             _ => false,
         }
     } else {
@@ -102,19 +112,45 @@ pub fn subscribe(
     };
 
     if is_seeker {
-        let discount = price
-            .checked_mul(config.seeker_discount_bps as u64)
-            .ok_or(EchelonError::Overflow)?
-            / BPS_DENOMINATOR;
-        price = price.checked_sub(discount).ok_or(EchelonError::Overflow)?;
+        price =
+            apply_discount(price, config.seeker_discount_bps).ok_or(EchelonError::Overflow)?;
     }
 
-    // Move USDC: subscriber -> program-owned vault.
+    // Slippage guard: abort if price changed since subscriber signed their tx.
+    require!(price <= max_price_micros, EchelonError::PriceExceedsMax);
+
+    let now = Clock::get()?.unix_timestamp;
+    let new_exp = new_expiry(now, ctx.accounts.subscription.expires_at, duration_months)
+        .ok_or(EchelonError::Overflow)?;
+
+    // ── CEI: mutate state BEFORE CPI ─────────────────────────────────────
+    {
+        let sub = &mut ctx.accounts.subscription;
+        if is_first {
+            sub.subscriber = ctx.accounts.subscriber.key();
+            sub.last_payment_signature = [0u8; 64];
+            sub.bump = ctx.bumps.subscription;
+        }
+        sub.tier = tier;
+        sub.started_at = now.max(sub.expires_at);
+        sub.expires_at = new_exp;
+        sub.months_paid = sub
+            .months_paid
+            .checked_add(duration_months as u32)
+            .ok_or(EchelonError::Overflow)?;
+        sub.renewal_count =
+            sub.renewal_count.checked_add(1).ok_or(EchelonError::Overflow)?;
+        sub.total_usdc_paid =
+            sub.total_usdc_paid.checked_add(price).ok_or(EchelonError::Overflow)?;
+        sub.is_seeker_holder = is_seeker;
+    }
+
+    // ── CPI: transfer stable → vault ─────────────────────────────────────
     token::transfer(
         CpiContext::new(
             ctx.accounts.token_program.to_account_info(),
             Transfer {
-                from: ctx.accounts.subscriber_usdc.to_account_info(),
+                from: ctx.accounts.subscriber_stable.to_account_info(),
                 to: ctx.accounts.vault.to_account_info(),
                 authority: ctx.accounts.subscriber.to_account_info(),
             },
@@ -122,53 +158,28 @@ pub fn subscribe(
         price,
     )?;
 
-    let now = Clock::get()?.unix_timestamp;
-    // Renewals stack: a new period starts at max(now, current expiry).
-    let start = core::cmp::max(now, ctx.accounts.subscription.expires_at);
-    let added = (duration_months as i64)
-        .checked_mul(SECONDS_PER_MONTH)
-        .ok_or(EchelonError::Overflow)?;
-    let new_expiry = start.checked_add(added).ok_or(EchelonError::Overflow)?;
-
-    let sub = &mut ctx.accounts.subscription;
-    if is_first {
-        sub.subscriber = ctx.accounts.subscriber.key();
-        sub.last_payment_signature = [0u8; 64];
-        sub.bump = ctx.bumps.subscription;
-    }
-    sub.tier = tier;
-    sub.started_at = start;
-    sub.expires_at = new_expiry;
-    sub.months_paid = sub
-        .months_paid
-        .checked_add(duration_months as u32)
-        .ok_or(EchelonError::Overflow)?;
-    sub.renewal_count = sub.renewal_count.checked_add(1).ok_or(EchelonError::Overflow)?;
-    sub.total_usdc_paid = sub.total_usdc_paid.checked_add(price).ok_or(EchelonError::Overflow)?;
-    sub.is_seeker_holder = is_seeker;
-
     emit!(SubscribedEvent {
-        subscriber: sub.subscriber,
+        subscriber: ctx.accounts.subscriber.key(),
         tier,
         duration_months,
         price_paid_micros: price,
         is_seeker_holder: is_seeker,
-        expires_at: new_expiry,
+        expires_at: new_exp,
     });
     Ok(())
 }
 
-/// Verified-collection Seeker check, mirroring `hooks/seekerVerification.ts`.
+/// Verified-collection Genesis check, mirroring `hooks/seekerVerification.ts`.
 ///
 /// Returns `true` iff:
-///   1. the token account is owned by the subscriber and holds >= 1 unit,
-///   2. the metadata account is the canonical Metaplex PDA for that NFT's mint
-///      (so a forged metadata account can't be substituted), and
-///   3. the NFT's `collection` is verified AND in the Genesis allowlist.
+///   1. Token account is owned by the subscriber and holds ≥ 1 token.
+///   2. Metadata account is the canonical Metaplex PDA for that mint (prevents
+///      forged metadata substitution).
+///   3. NFT's `collection.verified == true` AND key is in the Genesis allowlist.
 ///
-/// Any failure returns `false` (no discount, no boost) rather than aborting the
-/// transaction — a flaky/forged Seeker input must never block a paid subscribe.
-fn verify_seeker(
+/// Any failure returns `false` (non-aborting) — a forged or flaky Seeker
+/// input must never block a legitimate paid subscribe.
+fn verify_genesis(
     token_acc: &Account<TokenAccount>,
     metadata: &Account<MetadataAccount>,
     subscriber: &Pubkey,
@@ -176,7 +187,7 @@ fn verify_seeker(
     if token_acc.owner != *subscriber || token_acc.amount < 1 {
         return false;
     }
-    let (expected_metadata, _) = Pubkey::find_program_address(
+    let (expected_pda, _) = Pubkey::find_program_address(
         &[
             b"metadata",
             METADATA_PROGRAM_ID.as_ref(),
@@ -184,7 +195,7 @@ fn verify_seeker(
         ],
         &METADATA_PROGRAM_ID,
     );
-    if metadata.key() != expected_metadata {
+    if metadata.key() != expected_pda {
         return false;
     }
     match &metadata.collection {

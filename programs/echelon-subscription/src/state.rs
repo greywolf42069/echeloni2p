@@ -1,43 +1,49 @@
 //! On-chain account state.
 //!
-//! `Subscription` is a field-for-field mirror of the v0.1 TS record at
-//! `hooks/subscriptionClient.ts::SubscriptionRecord`, so the v0.1 UI shows the
-//! exact numbers the v0.2 airdrop program will distribute against.
+//! `Subscription` is a field-for-field mirror of `hooks/subscriptionClient.ts::SubscriptionRecord`
+//! (plus `last_usage_nonce` for on-chain dedup of EepGen usage submissions).
+//!
+//! `Config` no longer stores a single vault address — the treasury is
+//! multi-token: the Config PDA holds SOL lamports directly and is the SPL
+//! authority over any number of per-mint token accounts. Any ATA/token account
+//! where `authority = config_pda` is a valid treasury vault for that mint.
 
 use anchor_lang::prelude::*;
 
-/// Singleton program configuration + treasury authority.
+/// Singleton program configuration, authority, and treasury policy.
 ///
-/// The `Config` PDA (`["config"]`) is also the SPL authority over the treasury
-/// vault, so `withdraw_treasury` signs vault CPIs with the config seeds. One PDA
-/// owns both policy and funds; there is no separate multisig-held vault key.
+/// PDA: `[b"config"]`.
+///
+/// Authority transfer is 2-step (propose → accept) to prevent irrecoverable
+/// misconfiguration. `withdraw_token` and `withdraw_sol` are CPI-signed via
+/// the Config PDA seeds so no human ever holds the vault key.
 #[account]
 #[derive(InitSpace)]
 pub struct Config {
-    /// Governance authority: foundation multisig at launch, handed off to an
-    /// RTD-holder governance PDA later via `update_config`.
+    /// Current governance authority (foundation multisig → RTD governance PDA).
     pub authority: Pubkey,
+    /// Pending incoming authority; must call `accept_authority` to confirm.
+    /// 2-step prevents an accidental/malicious hand-off from locking the program.
+    pub pending_authority: Option<Pubkey>,
     /// Sync-daemon hot key permitted to call `increment_eepgen_usage`.
     pub daemon_key: Pubkey,
-    /// `echelon-templates` program id; owner-gates the `record_template_purchase` proof.
+    /// `echelon-templates` program id; owner-gates the purchase proof.
+    /// Must never be `Pubkey::default()` (enforced in `initialize` + `update_config`).
     pub templates_program: Pubkey,
-    /// Accepted stablecoin mint (mainnet USDC).
-    pub usdc_mint: Pubkey,
-    /// Program-owned USDC token account (`["vault"]` PDA).
-    pub vault: Pubkey,
+    /// The stablecoin mint accepted by `subscribe`. Validated on every payment.
+    pub accepted_stable_mint: Pubkey,
     /// Monthly list prices in micro-USDC (1 USDC = 1_000_000).
     pub plus_price_micros: u64,
     pub privacy_price_micros: u64,
     pub operator_price_micros: u64,
-    /// Seeker/Saga holder discount, in basis points (2000 = 20%).
+    /// Seeker/Saga holder discount in basis points. Must be ≤ 10_000.
     pub seeker_discount_bps: u16,
-    /// Kill switch for `subscribe` (governance/incident response).
+    /// Kill switch: `subscribe` and `migrate_from_v0_1` abort when true.
     pub paused: bool,
     pub bump: u8,
-    pub vault_bump: u8,
 }
 
-/// Per-subscriber record. PDA: `["subscription", subscriber]`.
+/// Per-subscriber PDA. PDA: `[b"subscription", subscriber]`.
 #[account]
 #[derive(InitSpace)]
 pub struct Subscription {
@@ -51,9 +57,12 @@ pub struct Subscription {
     pub is_seeker_holder: bool,
     pub total_eepgen_tokens_used: u64,
     pub total_template_purchases: u32,
-    /// v0.1 USDC-transfer signature, set only by `migrate_from_v0_1`. Native
-    /// v0.2 subscriptions leave this zeroed — the payment is self-evidencing
-    /// (the SPL transfer rides in the same transaction as the `subscribe` ix).
+    /// Monotonic nonce for daemon usage submissions. Each `increment_eepgen_usage`
+    /// call must provide a `nonce > last_usage_nonce`. Protects against replay of
+    /// a usage message that the daemon may retry after a network hiccup.
+    pub last_usage_nonce: u64,
+    /// Set by `migrate_from_v0_1` only; the v0.1 USDC transfer signature that
+    /// proves the historical payment. Native v0.2 subscribes leave this zeroed.
     pub last_payment_signature: [u8; 64],
     pub bump: u8,
 }
@@ -67,7 +76,6 @@ pub enum SubscriptionTier {
 }
 
 impl SubscriptionTier {
-    /// True for the paid tiers `subscribe` will accept.
     pub fn is_paid(&self) -> bool {
         matches!(self, Self::Plus | Self::Privacy | Self::Operator)
     }
