@@ -90,30 +90,31 @@ class TestEpochStep:
             f"distributed={distributed}, expected={expected}"
         )
 
-    def test_treasury_grows_from_pumpfun_creator_fees(self):
-        # After day 0 (pump.fun creator fees skipped on day 0), the
-        # treasury should accumulate RTD from creator fees.
+    def test_treasury_grows_from_raydium_lp_fees(self):
+        # After day 0 (Raydium LP fees skipped on day 0), the treasury
+        # should accumulate RTD from the RTD half of LP fees.
         params = P.Params(
             n_relays=10, n_subscribers=100, n_epochs=10, seed=42,
-            pumpfun_daily_volume_usd=100_000,
+            raydium_daily_volume_usd=100_000,
         )
         net = N.Network.from_params(params)
         for epoch in range(10):
             net.step(epoch)
-        # After 10 epochs, some RTD in treasury (50% of creator fees)
+        # After 10 epochs, some RTD in treasury (50% × 50% RTD-half of LP fees)
         assert net.treasury_rtd > 0
         # And some RTD burned
         assert net.cumulative_burned_rtd > 0
 
-    def test_burn_is_50_percent_of_treasury_inflow(self):
+    def test_burn_is_50_percent_of_rtd_lp_fee_inflow(self):
         params = P.Params(
             n_relays=10, n_subscribers=100, n_epochs=2, seed=42,
-            pumpfun_daily_volume_usd=10_000,
+            raydium_daily_volume_usd=10_000,
         )
         net = N.Network.from_params(params)
-        net.step(0)  # day 0: no pump.fun fees
-        net.step(1)  # day 1: pump.fun fees accumulate
-        # The split at day-1 step should be 50/50 between treasury & burn
+        net.step(0)  # day 0: no LP fees
+        net.step(1)  # day 1: LP fees accumulate
+        # The 50% burn applies to the RTD half of LP fees.
+        # treasury_rtd = 50% of RTD inflow; burned = 50% of RTD inflow → equal.
         assert math.isclose(
             net.treasury_rtd, net.cumulative_burned_rtd, rel_tol=0.001,
         )

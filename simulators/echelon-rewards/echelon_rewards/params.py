@@ -21,16 +21,20 @@ from dataclasses import dataclass, field
 from typing import Literal
 
 
-# ─── design-v2 anchors (do not modify without updating design-v2.md) ──────
+# ─── design-v2.1 anchors (do not modify without updating design-v2.md) ──────
+# v2.1 amendment (2026-05-28): pump.fun replaced by Raydium CLMM.
+# All prior LAUNCH_SUPPLY_RTD / PUMPFUN_* constants are removed.
 
-# Total supply cap. design-v2 §9.5
+# Total supply cap. design-v2 §9.1
 TOTAL_SUPPLY_RTD: int = 100_000_000
 
-# Pump.fun fair-launch share. design-v2 §9.1+§9.5
-LAUNCH_SUPPLY_RTD: int = 60_000_000
-
-# Reserved for relay-emission contract. design-v2 §9.5
-EMISSION_POOL_RTD: int = TOTAL_SUPPLY_RTD - LAUNCH_SUPPLY_RTD  # 40M
+# Allocation breakdown (sums to TOTAL_SUPPLY_RTD). design-v2 §9.1
+RAYDIUM_LP_RTD:          int = 1_000_000    # bootstrap CLMM pool (6-month LP lock)
+EMISSION_POOL_RTD:       int = 50_000_000   # relay rewards, 8-year decay curve
+AIRDROP_RTD:             int = 10_000_000   # retroactive v0.1-user airdrop at v0.2 launch
+FOUNDATION_OPS_RTD:      int = 5_000_000    # 12mo cliff + 24mo vest, multisig
+CROSS_CHAIN_RESERVE_RTD: int = 5_000_000    # future OCTRA / own-chain (multisig, no vest)
+LIQUIDITY_RESERVE_RTD:   int = 29_000_000   # protocol-owned liquidity (governance-gated)
 
 # Emission window — 8 years. design-v2 §9.5
 EMISSION_WINDOW_DAYS: int = 8 * 365
@@ -68,15 +72,32 @@ COVER_TRAFFIC_TO_RELAYS: float = 1.00           # 100% to relays — privacy inf
 # RTD burn on treasury inflow — design-v2 §9.3
 TREASURY_RTD_BURN_RATE: float = 0.50
 
-# Pump.fun creator fee. design-v2 §9.2 / §9.3
-PUMPFUN_CREATOR_FEE: float = 0.0095   # 0.95% of every RTD trade post-graduation
+# Raydium CLMM LP fee tier. Raydium supports 0.01%, 0.05%, 0.25%, 1%.
+# We launch in the 1% tier (volatile asset, thin initial liquidity).
+RAYDIUM_LP_FEE_TIER: float = 0.0100   # 1% of each CLMM swap accrues to LP position
 
 # Slasher reward — answered in v2 §12 Q4
 SLASHER_REWARD_FRACTION: float = 0.01  # 1% of slashed bond to slasher
                                        # 99% burned
 
-# Bond minimum — design-v2 §7
-MIN_BOND_RTD: int = 100
+# Bond tier thresholds — tokenomics.md §4 (relay operator tiers).
+# Tier determines the emission multiplier and routing priority.
+MIN_BOND_RTD: int = 100           # Tier 1 (base relay, 1.0× multiplier)
+TIER2_BOND_RTD: int = 1_000      # Tier 2 (enhanced relay, 1.25× multiplier)
+TIER3_BOND_RTD: int = 10_000     # Tier 3 (anchor relay, 1.5× multiplier)
+
+BOND_TIER_MULTIPLIERS = {1: 1.00, 2: 1.25, 3: 1.50}
+
+# Emission decay half-life — 3 years. tokenomics.md §3.
+# λ = ln(2) / half_life_days; daily_emission(t) = E₀ × e^(−λt)
+# E₀ is calibrated so ∫₀^EMISSION_WINDOW_DAYS E₀ × e^(−λt) dt = EMISSION_POOL_RTD.
+EMISSION_HALF_LIFE_DAYS: int = 3 * 365   # 1095 days
+
+# Protocol-owned liquidity (POL) buyback trigger. tokenomics.md §6.2.
+# Treasury deploys buybacks when RTD trades below this fraction of its
+# 90-day TWAP. Deployment capped at 1% of LIQUIDITY_RESERVE_RTD per epoch.
+POL_BUYBACK_TRIGGER_FRACTION: float = 0.80   # trigger at 20% drawdown from 90d TWAP
+POL_BUYBACK_EPOCH_CAP_FRACTION: float = 0.01  # max 1% of reserve deployed per day
 
 # Plausibility caps — initial guesses, REFINED by sim output. design-v2 §5.3
 INITIAL_MAX_BYTES_PER_RECEIPT: int = 1 * 1024 ** 3   # 1 GiB hard ceiling per receipt
@@ -87,11 +108,15 @@ CROSS_CHECK_DISCREPANCY_THRESHOLD: float = 0.05
 
 # ─── Real-world calibration data (sourced, cited) ────────────────────────
 
-# Helium / Nym typical APR for DePIN with mature emission.
-# design-v2 §9.6 — target trajectory.
-TARGET_YEAR_1_APR: float = 0.24    # 24%
-TARGET_YEAR_4_APR: float = 0.07    # 7%
-TARGET_YEAR_8_APR: float = 0.015   # 1.5%
+# Target APR corridor per design-v2.1 §9.6 (aggressive-choke setting).
+# Governance adjusts emission rate to hold APR inside the corridor.
+# These are TARGETS, not guarantees; actual APR depends on bond pool size.
+TARGET_APR_YEAR_1_MIN: float = 0.50    # 50%  — bootstrap phase lower bound
+TARGET_APR_YEAR_1_MAX: float = 2.00    # 200% — bootstrap phase upper bound
+TARGET_APR_YEAR_3_MIN: float = 0.15    # 15%
+TARGET_APR_YEAR_3_MAX: float = 0.40    # 40%
+TARGET_APR_MATURE_MIN: float = 0.05    # 5%   — long-run floor (fees dominant)
+TARGET_APR_MATURE_MAX: float = 0.15    # 15%  — long-run ceiling
 
 # Termux / mobile node uptime profile. Industry typical for "always-on but
 # OS-killable phone background services" is 60-80% uptime. We use 70% mean
@@ -175,9 +200,9 @@ class Params:
         "enterprise": 333,     # 10 TB/mo
     })
 
-    # Pump.fun trade volume (USD/day) — assumption for treasury creator-fee
-    # income. Reasonable early-stage assumption: $250K/day at modest volume.
-    pumpfun_daily_volume_usd: float = 250_000
+    # Raydium CLMM swap volume (USD/day) — for LP fee revenue projection.
+    # Conservative assumption at $100K/day (thin market, post-launch).
+    raydium_daily_volume_usd: float = 100_000
 
     # Random seed
     seed: int = 42

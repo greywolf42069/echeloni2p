@@ -101,14 +101,19 @@ class Network:
         # Fee split is in USD; for treasury booking we keep it as USD.
         self.treasury_usd += fee_split.treasury
 
-        # 3b. Pump.fun creator fees in RTD (only after Day 0)
-        pumpfun_fee_usd = (
-            self.params.pumpfun_daily_volume_usd * P.PUMPFUN_CREATOR_FEE
+        # 3b. Raydium CLMM LP fees (only after Day 0 — pool needs 1 day to settle)
+        # LP fees split roughly 50/50 between RTD and SOL/USDC by pool composition.
+        raydium_fee_total_usd = (
+            self.params.raydium_daily_volume_usd * P.RAYDIUM_LP_FEE_TIER
         ) if epoch > 0 else 0.0
-        # Treasury earns this in RTD-equivalent (creator fees come out of trades)
-        pumpfun_fee_rtd = pumpfun_fee_usd / max(self.params.rtd_price_usd, 1e-12)
-        if pumpfun_fee_rtd > 0:
-            kept, burned = M.burn_rate(pumpfun_fee_rtd)
+        # RTD-denominated half of LP fees: 50% burn applies per design-v2 §9.3
+        raydium_fee_rtd = (raydium_fee_total_usd * 0.50) / max(self.params.rtd_price_usd, 1e-12)
+        # USD-denominated half goes directly to treasury_usd
+        self.treasury_usd += raydium_fee_total_usd * 0.50
+        pumpfun_fee_rtd = raydium_fee_rtd  # keep internal name for result bookkeeping
+        pumpfun_fee_usd = raydium_fee_total_usd  # likewise
+        if raydium_fee_rtd > 0:
+            kept, burned = M.burn_rate(raydium_fee_rtd)
             self.treasury_rtd += kept
             self.cumulative_burned_rtd += burned
 
