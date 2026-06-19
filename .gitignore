@@ -21,6 +21,12 @@ coverage
 .env.*
 !.env.example
 
+# Rust / Anchor (Solana programs)
+target/
+.anchor/
+test-ledger/
+**/*.rs.bk
+
 # Python / pytest
 __pycache__/
 *.pyc

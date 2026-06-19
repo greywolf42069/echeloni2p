@@ -1,111 +1,155 @@
 # Echelon — Subscription Anchor Program (`programs/echelon-subscription/`)
 
-> **Status: source committed, NOT yet deployed.** This crate is the v0.2
-> on-chain replacement for the v0.1 localStorage subscription store at
-> `hooks/subscriptionClient.ts`. The TS field shape mirrors `Subscription`
-> below 1:1; v0.2 deploy includes a "claim my v0.1 history" instruction
-> that backfills the on-chain PDA from the user's local record (signed by
-> the wallet so the chain can trust the migration).
+> **Status: source written and type-checked (`cargo check` clean), NOT yet
+> deployed.** This crate is the v0.2 on-chain replacement for the v0.1
+> localStorage subscription store at `hooks/subscriptionClient.ts`. The
+> `Subscription` account is a field-for-field mirror of the TS
+> `SubscriptionRecord`, so the v0.1 UI shows the exact numbers the v0.2 airdrop
+> program will distribute against.
+
+Anchor `0.30.1`. Built as the first program in the workspace defined by the
+repo-root `Anchor.toml` + `Cargo.toml`.
 
 ## Layout
 
 ```
 programs/echelon-subscription/
-├── Cargo.toml         # workspace member; not yet wired into CI
-├── Xargo.toml         # for solana BPF target
-├── README.md          # this file
+├── Cargo.toml
+├── Xargo.toml
+├── README.md                  # this file
 └── src/
-    └── lib.rs         # the program
+    ├── lib.rs                 # declare_id! + #[program] instruction surface
+    ├── constants.rs           # PDA seeds, time math, Genesis collection allowlist
+    ├── errors.rs              # EchelonError
+    ├── state.rs               # Config, Subscription, SubscriptionTier
+    └── instructions/
+        ├── mod.rs
+        ├── initialize.rs      # Config + treasury vault setup (one-time)
+        ├── subscribe.rs       # USDC -> vault, create/renew, Seeker boost
+        ├── usage.rs           # increment_eepgen_usage + record_template_purchase
+        ├── expire.rs          # permissionless downgrade-to-Free
+        ├── withdraw_treasury.rs
+        ├── update_config.rs   # governance knobs + authority handoff
+        └── migrate.rs         # v0.1 -> v0.2 history backfill
 ```
 
 ## Program ID
 
-`SubscRiptionProgRamId11111111111111111111111` (placeholder — generated
-when devnet keypair is created during E.2 deploy).
+`E3TuFfRKQDmt3uwTcXaUFVd2Zrqa1wYzUG9KykmWQsoj` is a **deterministic
+placeholder** so the source compiles before the devnet keypair exists.
+`anchor keys sync` rewrites both `declare_id!` (in `lib.rs`) and the
+`[programs.*]` entries in the root `Anchor.toml` from the real
+`target/deploy/` keypair at first build. Do not treat it as canonical.
+
+## Treasury model — full program-owned PDA vault
+
+Subscription revenue is **custodied by the program**, not swept to a foundation
+ATA:
+
+- `Config` PDA (`["config"]`) is the singleton config **and** the SPL authority
+  over the vault.
+- `vault` is a USDC token account at PDA `["vault"]`, `token::authority = Config`.
+- `subscribe` CPI-transfers USDC from the subscriber into `vault`.
+- `withdraw_treasury(amount)` is the only way out. It is `authority`-gated and
+  the CPI is signed by the `Config` PDA seeds — no human ever holds the vault
+  key.
+
+At launch `authority` is the foundation multisig; `update_config { new_authority }`
+hands it off to an RTD-holder governance PDA, at which point treasury spend
+becomes a vote rather than a signature.
 
 ## Accounts
 
-### `Subscription` (PDA[b"subscription", subscriber])
+### `Config` (PDA `["config"]`, singleton)
 
-```rust
-#[account]
-pub struct Subscription {
-    pub subscriber: Pubkey,         // 32
-    pub tier: SubscriptionTier,     //  1 (Free=0, Plus=1, Privacy=2, Operator=3)
-    pub months_paid: u32,           //  4
-    pub renewal_count: u32,         //  4
-    pub started_at: i64,            //  8 (UTC seconds)
-    pub expires_at: i64,            //  8
-    pub total_usdc_paid: u64,       //  8 (micro-USDC)
-    pub is_seeker_holder: bool,     //  1
-    pub total_eepgen_tokens_used: u64, // 8
-    pub total_template_purchases: u32, // 4
-    pub last_payment_signature: [u8; 64], // 64
-    pub bump: u8,                   //  1
-    // total: 8 (discriminator) + 143 = 151
-}
-```
+| field | type | purpose |
+|---|---|---|
+| `authority` | `Pubkey` | governance authority (multisig → governance PDA) |
+| `daemon_key` | `Pubkey` | sync-daemon hot key allowed to meter EepGen usage |
+| `templates_program` | `Pubkey` | `echelon-templates` id; owner-gates the purchase proof |
+| `usdc_mint` | `Pubkey` | accepted stablecoin mint |
+| `vault` | `Pubkey` | program-owned USDC token account |
+| `plus/privacy/operator_price_micros` | `u64` | monthly list prices (micro-USDC) |
+| `seeker_discount_bps` | `u16` | Seeker/Saga holder discount (2000 = 20%) |
+| `paused` | `bool` | `subscribe` kill switch |
+| `bump`, `vault_bump` | `u8` | PDA bumps |
+
+### `Subscription` (PDA `["subscription", subscriber]`)
+
+Mirrors `hooks/subscriptionClient.ts::SubscriptionRecord`:
+`subscriber, tier, months_paid, renewal_count, started_at, expires_at,
+total_usdc_paid, is_seeker_holder, total_eepgen_tokens_used,
+total_template_purchases, last_payment_signature, bump`.
+
+`last_payment_signature` is set **only** by `migrate_from_v0_1` (the v0.1 USDC
+transfer it backfills). Native v0.2 subscriptions leave it zeroed — the payment
+is self-evidencing, riding in the same transaction as the `subscribe` ix. (A
+program cannot read its own transaction signature at runtime, so there is no
+honest value to put there for native subscribes.)
 
 ## Instructions
 
-### `subscribe(tier, duration_months)`
+| ix | gate | effect |
+|---|---|---|
+| `initialize(args)` | once | creates `Config` + treasury `vault` |
+| `subscribe(tier, duration_months)` | subscriber | USDC → vault, create/renew PDA, Seeker boost |
+| `increment_eepgen_usage(tokens)` | `daemon_key` | adds to `total_eepgen_tokens_used` |
+| `record_template_purchase()` | subscriber + proof | sets template flag (airdrop weight) |
+| `expire_subscription()` | permissionless | `tier = Free` once `expires_at <= now` |
+| `withdraw_treasury(amount)` | `authority` | vault → destination, CPI-signed by Config |
+| `update_config(args)` | `authority` | prices, daemon key, templates id, pause, handoff |
+| `migrate_from_v0_1(args)` | `authority` | backfills a fresh PDA from a v0.1 record |
 
-- **Accounts**: subscriber (signer), Subscription PDA (writable, init-if-needed),
-  USDC token account from subscriber → foundation USDC ATA (writable),
-  Token Program, Associated Token Program, System Program.
-- **Optional remaining_accounts**: subscriber's Seeker Genesis Token ATA (read-only).
-- **Logic**:
-  1. Verify `tier ∈ {Plus, Privacy, Operator}`.
-  2. Verify `duration_months ∈ [1, 12]`.
-  3. Compute price from on-chain price oracle (constant in v0.2: 9/29/99 USDC × duration).
-  4. CPI `token::transfer` of `price × 1_000_000` from subscriber to foundation ATA.
-  5. If first subscribe AND remaining_accounts contains a Seeker Genesis Token ATA
-     with amount ≥ 1, set `is_seeker_holder = true` AND apply 20% discount.
-  6. Update `Subscription` fields: tier, months_paid+=N, renewal_count+=1,
-     started_at = max(now, expires_at), expires_at = started_at + N×30d,
-     total_usdc_paid += paid micros, last_payment_signature = txn signature.
+### `subscribe` details
 
-### `increment_eepgen_usage(tokens_used)`
+1. Reject if `paused`; require `tier ∈ {Plus, Privacy, Operator}` and
+   `duration_months ∈ [1, 12]`.
+2. `price = monthly_price[tier] × duration_months`.
+3. On **first** subscribe, evaluate the Seeker boost (below). If the wallet
+   holds a verified Genesis NFT: `is_seeker_holder = true` and a
+   `seeker_discount_bps` discount is applied to `price`. The flag persists across
+   renewals.
+4. CPI `token::transfer(price)` subscriber → vault.
+5. Renewals stack: `started_at = max(now, expires_at)`,
+   `expires_at = started_at + duration_months × 30d`. Update counters.
+6. `emit!(SubscribedEvent { … })` for indexers.
 
-- **Accounts**: daemon-owned key (signer), Subscription PDA (writable).
-- **Logic**: only the daemon's published key may call this. Adds `tokens_used`
-  to `total_eepgen_tokens_used`. Idempotent if (wallet, day) is the dedup key
-  via a separate UsageLog PDA — to be designed in deploy phase.
+## Seeker / Saga Genesis Token boost — verified-collection check
 
-### `record_template_purchase()`
+> This is the corrected design. The Genesis Tokens are **collection NFTs** (each
+> holder has a distinct member mint), so a flat mint allowlist cannot work. We
+> check the **collection**, exactly as the off-chain hook does.
 
-- **Accounts**: subscriber (signer), Subscription PDA (writable),
-  Template program's TemplatePackPurchasePDA (read-only proof).
-- **Logic**: caps `total_template_purchases` at 1, used as airdrop weight input.
+`subscribe` takes two **optional, typed** accounts (Anchor 0.30 optional
+accounts — the same data as `remaining_accounts`, but type-checked and visible
+in the IDL):
 
-### `expire_subscription()`
+- `genesis_token_account` — the subscriber's NFT token account (`amount == 1`)
+- `genesis_metadata` — the Metaplex metadata account for that NFT's mint
 
-- **Accounts**: anyone (signer), Subscription PDA (writable).
-- **Logic**: when `expires_at <= now`, sets `tier = Free`. Idempotent. Lets
-  the airdrop snapshot program walk records cleanly without each one
-  carrying an explicit `is_active` flag.
+A wallet qualifies iff **all** hold:
 
-## Seeker Genesis Token mint allowlist
+1. the token account is owned by the subscriber and holds ≥ 1 unit;
+2. `genesis_metadata` is the **canonical** Metaplex PDA for the token's mint
+   (`["metadata", metaplex, mint]`) — a forged metadata account is rejected;
+3. the NFT's `collection.verified == true` **and** `collection.key` is in the
+   allowlist (`constants::is_qualifying_collection`).
 
-Hard-coded constant in `lib.rs`:
+The allowlist holds **collection** mints, mirroring
+`hooks/seekerVerification.ts::GENESIS_COLLECTION_MINTS`:
 
-```rust
-const QUALIFYING_GENESIS_MINTS: &[Pubkey] = &[
-    // Saga Genesis Token mint (TBD — pulled from Solana Mobile docs at deploy)
-    pubkey!("11111111111111111111111111111111"),
-    // Seeker Genesis Token mint (TBD)
-    pubkey!("11111111111111111111111111111111"),
-];
-```
+- Saga Genesis collection `46pcSL5gmjBrPqGKFaLbbCmR6iVuLJbnQy13hAe7s6CC` — confirmed.
+- Seeker Genesis collection — Solana Mobile has not published the final address;
+  `is_qualifying_collection` in `constants.rs` is the one-line place to add it.
 
-These placeholders MUST be replaced with the real mint addresses before
-mainnet deploy. The list is upgradeable via a foundation-multisig-only
-`update_genesis_mints()` instruction (also in `lib.rs`).
+Any failure in the check returns "not a holder" (no discount, no boost) rather
+than aborting — a flaky or forged Seeker input must never block a paid
+subscribe, matching the resilient off-chain behaviour.
 
-## Airdrop weight (read-only consumer)
+## Airdrop weight (read by the v0.2 `echelon-airdrop` program)
 
-The `programs/echelon-airdrop/` program (Phase E.7, v0.2) reads every
-`Subscription` PDA at snapshot time and computes weight per design-v2 §13.3:
+`echelon-airdrop` snapshots every `Subscription` PDA and computes, per
+design-v2 §13.3:
 
 ```
 weight = months_paid × tier_multiplier
@@ -114,38 +158,26 @@ weight = months_paid × tier_multiplier
 weight ×= is_seeker_holder ? 2.0 : 1.0
 ```
 
-The TS-side computation in `hooks/subscriptionClient.ts::computeAirdropWeight`
-mirrors this exactly so the v0.1 UI shows the same number the v0.2 program
-will distribute against.
+`hooks/subscriptionClient.ts::computeAirdropWeight` mirrors this exactly so the
+v0.1 UI previews the same number.
 
-## v0.1 → v0.2 migration plan
+## v0.1 → v0.2 migration
 
-When the program is deployed and the foundation announces v0.2:
+`migrate_from_v0_1` is `authority`-gated and only creates **fresh** PDAs (it
+aborts with `AlreadyMigrated` if the subscriber already transacted on v0.2).
+Trust model identical to the template-entitlement migration: the v0.1 buyer's
+USDC transfers are already on-chain; the foundation backend verifies the
+recorded `last_payment_signature` against on-chain history off-band, then signs
+this instruction to vouch for the backfilled state.
 
-1. Each connected wallet's localStorage `SubscriptionRecord` is read by
-   `hooks/subscriptionClient.ts::getSubscription(wallet)`.
-2. UI prompts user "Migrate your v0.1 subscription to chain?".
-3. User signs a `claim_v0_1_history(record_hash)` message; the daemon (or
-   a foundation backend) verifies the original USDC transfers exist by
-   checking the recorded `last_payment_signature` against on-chain history,
-   and submits an Anchor `migrate_from_v0_1()` instruction creating the
-   PDA with the right state.
-4. Once on-chain, localStorage record is marked `migratedAt: <slot>` and
-   the on-chain PDA becomes the source of truth.
+## Building & testing
 
-This is the same trust model as the template entitlement migration —
-the v0.1 buyer's payment is on-chain (USDC transfer signature),
-the v0.1 entitlement claim is local-only, and migration verifies the
-former to authenticate the latter.
+```
+anchor build              # compiles BPF + generates IDL; runs anchor keys sync
+anchor test               # localnet integration tests (TS, added in deploy phase)
+cargo check -p echelon-subscription   # host-target type-check (no toolchain beyond cargo)
+```
 
-## Why ship this README before the Rust code
-
-Anchor / Solana CLI tooling is not yet installed in this environment.
-The decision is documented here so the v0.2 implementation phase has
-zero ambiguity about account layout, instruction surface, fee splits,
-or migration path — the v0.1 TS field shape is already locked at
-`hooks/subscriptionClient.ts::SubscriptionRecord`.
-
-The Rust source for `lib.rs` will be added in a follow-up commit when
-the Anchor toolchain is wired in (E.2 deploy phase). Until then, this
-README + the TS implementation define the canonical contract.
+The CI workflow is **not** yet wired to build this crate (CI is Node + Python
+today). Adding an `anchor build` job is a deploy-phase task once the Solana
+toolchain is provisioned on the runner.

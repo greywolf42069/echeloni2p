@@ -1,0 +1,25 @@
+[package]
+name = "echelon-subscription"
+version = "0.2.0"
+description = "Echelon USDC subscription program: program-owned PDA treasury, on-chain airdrop-weight tracking, and verified Seeker/Saga Genesis Token boost."
+edition = "2021"
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "echelon_subscription"
+
+[features]
+default = []
+cpi = ["no-entrypoint"]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+# `init-if-needed` is required for the renewal path (subscribe re-uses the
+# subscriber's existing Subscription PDA). `metadata` pulls mpl-token-metadata
+# for the verified-collection Seeker check.
+idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
+
+[dependencies]
+anchor-lang = { version = "0.30.1", features = ["init-if-needed"] }
+anchor-spl = { version = "0.30.1", features = ["metadata"] }
