@@ -21,20 +21,26 @@ from dataclasses import dataclass, field
 from typing import Literal
 
 
-# ─── design-v2.1 anchors (do not modify without updating design-v2.md) ──────
-# v2.1 amendment (2026-05-28): pump.fun replaced by Raydium CLMM.
-# All prior LAUNCH_SUPPLY_RTD / PUMPFUN_* constants are removed.
+# ─── tokenomics v1.0 anchors ─────────────────────────────────────────────────
+# DEX: PumpSwap (custom SPL token → pool created directly, no pump.fun bonding
+# curve). This preserves controlled emission and custom supply cap.
 
-# Total supply cap. design-v2 §9.1
+# Total supply cap. tokenomics.md §1
 TOTAL_SUPPLY_RTD: int = 100_000_000
 
-# Allocation breakdown (sums to TOTAL_SUPPLY_RTD). design-v2 §9.1
-RAYDIUM_LP_RTD:          int = 1_000_000    # bootstrap CLMM pool (6-month LP lock)
-EMISSION_POOL_RTD:       int = 50_000_000   # relay rewards, 8-year decay curve
-AIRDROP_RTD:             int = 10_000_000   # retroactive v0.1-user airdrop at v0.2 launch
-FOUNDATION_OPS_RTD:      int = 5_000_000    # 12mo cliff + 24mo vest, multisig
-CROSS_CHAIN_RESERVE_RTD: int = 5_000_000    # future OCTRA / own-chain (multisig, no vest)
-LIQUIDITY_RESERVE_RTD:   int = 29_000_000   # protocol-owned liquidity (governance-gated)
+# Allocation breakdown (sums to TOTAL_SUPPLY_RTD). tokenomics.md §1
+PUMPSWAP_LP_RTD:             int = 1_000_000    # initial PumpSwap pool (6-month LP lock)
+EMISSION_POOL_RTD:           int = 50_000_000   # relay rewards, 8-year decay curve
+PROSPECTIVE_AIRDROP_RTD:     int = 3_000_000    # Seeker Genesis Token holders (claim via app)
+RETROACTIVE_AIRDROP_RTD:     int = 7_000_000    # v0.1 power users (usage-weighted, claim v0.2)
+FOUNDATION_OPS_RTD:          int = 5_000_000    # 12mo cliff + 24mo vest, multisig
+CROSS_CHAIN_RESERVE_RTD:     int = 5_000_000    # future OCTRA / own-chain (multisig, no vest)
+LIQUIDITY_RESERVE_RTD:       int = 29_000_000   # protocol-owned liquidity (governance-gated)
+
+# Prospective airdrop mechanics — tokenomics.md §2.1
+PROSPECTIVE_AIRDROP_INSTANT_FRACTION: float = 0.50   # 50% unlocked immediately on claim
+PROSPECTIVE_AIRDROP_VEST_DAYS:        int = 90        # remaining 50% vests linearly over 90 days
+PROSPECTIVE_AIRDROP_CLAIM_WINDOW_DAYS: int = 90       # unclaimed after 90 days → retroactive pool
 
 # Emission window — 8 years. design-v2 §9.5
 EMISSION_WINDOW_DAYS: int = 8 * 365
@@ -72,9 +78,10 @@ COVER_TRAFFIC_TO_RELAYS: float = 1.00           # 100% to relays — privacy inf
 # RTD burn on treasury inflow — design-v2 §9.3
 TREASURY_RTD_BURN_RATE: float = 0.50
 
-# Raydium CLMM LP fee tier. Raydium supports 0.01%, 0.05%, 0.25%, 1%.
-# We launch in the 1% tier (volatile asset, thin initial liquidity).
-RAYDIUM_LP_FEE_TIER: float = 0.0100   # 1% of each CLMM swap accrues to LP position
+# PumpSwap LP fee. PumpSwap charges 0.25% per swap: 0.20% to LPs, 0.05% to protocol.
+# The LP-side fee (0.20%) accrues to our LP position; protocol fee goes to pump.fun.
+PUMPSWAP_LP_FEE_TO_LP: float = 0.0020       # 0.20% — what our LP position earns
+PUMPSWAP_PROTOCOL_FEE: float = 0.0005       # 0.05% — goes to pump.fun treasury (not ours)
 
 # Slasher reward — answered in v2 §12 Q4
 SLASHER_REWARD_FRACTION: float = 0.01  # 1% of slashed bond to slasher
@@ -200,9 +207,9 @@ class Params:
         "enterprise": 333,     # 10 TB/mo
     })
 
-    # Raydium CLMM swap volume (USD/day) — for LP fee revenue projection.
-    # Conservative assumption at $100K/day (thin market, post-launch).
-    raydium_daily_volume_usd: float = 100_000
+    # PumpSwap volume (USD/day) — for LP fee revenue projection.
+    # Conservative assumption at $50K/day (thin market, post-launch).
+    pumpswap_daily_volume_usd: float = 50_000
 
     # Random seed
     seed: int = 42

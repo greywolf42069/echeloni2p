@@ -101,19 +101,19 @@ class Network:
         # Fee split is in USD; for treasury booking we keep it as USD.
         self.treasury_usd += fee_split.treasury
 
-        # 3b. Raydium CLMM LP fees (only after Day 0 — pool needs 1 day to settle)
-        # LP fees split roughly 50/50 between RTD and SOL/USDC by pool composition.
-        raydium_fee_total_usd = (
-            self.params.raydium_daily_volume_usd * P.RAYDIUM_LP_FEE_TIER
+        # 3b. PumpSwap LP fees (only after Day 0 — pool needs 1 day to settle)
+        # PumpSwap 0.20% LP fee splits ~50/50 between RTD and SOL by pool weight.
+        ps_fee_total_usd = (
+            self.params.pumpswap_daily_volume_usd * P.PUMPSWAP_LP_FEE_TO_LP
         ) if epoch > 0 else 0.0
-        # RTD-denominated half of LP fees: 50% burn applies per design-v2 §9.3
-        raydium_fee_rtd = (raydium_fee_total_usd * 0.50) / max(self.params.rtd_price_usd, 1e-12)
-        # USD-denominated half goes directly to treasury_usd
-        self.treasury_usd += raydium_fee_total_usd * 0.50
-        pumpfun_fee_rtd = raydium_fee_rtd  # keep internal name for result bookkeeping
-        pumpfun_fee_usd = raydium_fee_total_usd  # likewise
-        if raydium_fee_rtd > 0:
-            kept, burned = M.burn_rate(raydium_fee_rtd)
+        # RTD-denominated half: 50% burn applies per tokenomics §6.1
+        ps_fee_rtd = (ps_fee_total_usd * 0.50) / max(self.params.rtd_price_usd, 1e-12)
+        # SOL/USD-denominated half goes directly to treasury_usd
+        self.treasury_usd += ps_fee_total_usd * 0.50
+        pumpfun_fee_rtd = ps_fee_rtd   # internal alias for EpochResult bookkeeping
+        pumpfun_fee_usd = ps_fee_total_usd
+        if ps_fee_rtd > 0:
+            kept, burned = M.burn_rate(ps_fee_rtd)
             self.treasury_rtd += kept
             self.cumulative_burned_rtd += burned
 
